@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>La Base de donnée Comédien</title>
+  <title>ReJoue les scènes</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
   <style>
@@ -11,7 +11,7 @@
       --bg: #0d0d0d;
       --surface: #161616;
       --surface2: #1e1e1e;
-      --border: #2a2a3a;
+      --border: #2a2a2a;
       --gold: #c9a227;
       --gold-dim: rgba(201,162,39,0.12);
       --text: #e8e8e0;
@@ -686,6 +686,7 @@
     <input type="number" id="nbFilter" min="1" max="99" placeholder="n" oninput="applyFilters()" title="Filtrer par nombre de personnages">
   </div>
   <button class="btn-add" onclick="openAddModal()">+ Ajouter</button>
+  <button onclick="openSettings()" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:7px 12px;border-radius:var(--radius);cursor:pointer;font-size:1rem;transition:border-color 0.2s" title="Paramètres" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">⚙</button>
 </header>
 
 <!-- TAGS BAR -->
@@ -723,6 +724,7 @@
     create policy "update" on scenes for update using (true);<br>
     create policy "delete" on scenes for delete using (true);
   </code>
+  <br>Remplace aussi <code>ANTHROPIC_KEY_ICI</code> par ta clé API Anthropic (<a href="https://console.anthropic.com" target="_blank" style="color:#d07070">console.anthropic.com</a>).
 </div>
 
 <!-- GRID -->
@@ -775,6 +777,7 @@
         <button class="btn primary" id="btnSaveTranscript" onclick="saveTranscript()" style="display:none">Enregistrer</button>
         <button class="btn" id="btnCancelTranscript" onclick="cancelEditTranscript()" style="display:none">Annuler</button>
         <button class="btn" id="btnGenTranscript" onclick="generateTranscript()" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#10024; Générer via IA</button>
+        <button class="btn" id="btnDownloadTranscript" onclick="downloadTranscript()" style="display:none;background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#8595; Télécharger</button>
         <button class="btn danger btn-spacer" onclick="deleteScene()">Supprimer</button>
       </div>
     </div>
@@ -849,6 +852,38 @@ VINCENT — Un Royale avec fromage."></textarea>
   </div>
 </div>
 
+
+<!-- ─────────────────────────────────────────
+     SETTINGS MODAL
+───────────────────────────────────────── -->
+<div class="modal-overlay" id="settingsModal" onclick="handleOverlayClick(event,'settingsModal')">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="closeSettings()">×</button>
+    <div class="form-header">Paramètres</div>
+    <div class="form-body" style="gap:1.2rem">
+
+      <div class="field">
+        <label>Clé API Anthropic</label>
+        <input type="password" id="settingsApiKey" placeholder="sk-ant-..."
+          style="font-family:'DM Mono',monospace;font-size:0.78rem;letter-spacing:0.02em">
+        <div class="field-hint">Stockée uniquement dans ton navigateur, jamais dans le code.</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="settingsKeyStatus" style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint)">Non configurée</div>
+      </div>
+
+    </div>
+    <div class="form-footer" style="justify-content:space-between">
+      <button class="btn danger" onclick="clearApiKey()">Effacer la clé</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeSettings()">Annuler</button>
+        <button class="btn primary" onclick="saveApiKey()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -862,6 +897,7 @@ VINCENT — Un Royale avec fromage."></textarea>
   const SUPABASE_URL      = 'https://usttwwuimhmutzsgwpgn.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzdHR3d3VpbWhtdXR6c2d3cGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNDAyNDMsImV4cCI6MjA5NDkxNjI0M30.nPJYvq92xfENhsf5uaBQX6PPD9cUtErD-oLHCjcJIGE';
 
+  let ANTHROPIC_KEY = localStorage.getItem('scenebase_api_key') || '';
 
   // ══════════════════════════════════════════
   // PREDEFINED TAGS
@@ -905,6 +941,7 @@ VINCENT — Un Royale avec fromage."></textarea>
 
   buildTagCheckboxes();
   const isConfigured = !SUPABASE_URL.includes('_ICI');
+  const aiConfigured  = () => (localStorage.getItem('scenebase_api_key') || '').startsWith('sk-');
   let db = null;
   let allScenes = [];
   let activeTags = new Set();
@@ -1063,6 +1100,7 @@ VINCENT — Un Royale avec fromage."></textarea>
     document.getElementById('btnEditTranscript').style.display   = '';
     document.getElementById('btnSaveTranscript').style.display   = 'none';
     document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnDownloadTranscript').style.display = s.transcript ? '' : 'none';
     document.getElementById('btnEditMeta').style.display         = '';
     document.getElementById('btnSaveMeta').style.display         = 'none';
     document.getElementById('btnCancelMeta').style.display       = 'none';
@@ -1105,29 +1143,34 @@ VINCENT — Un Royale avec fromage."></textarea>
     const s = allScenes.find(s => s.id === currentId);
     if (!s) return;
 
+    ANTHROPIC_KEY = localStorage.getItem('scenebase_api_key') || '';
+    if (!aiConfigured()) {
+      toast('Ajoute ta clé Anthropic dans le code (ANTHROPIC_KEY)', true);
+      return;
+    }
+    if (window.location.protocol === 'file:') {
+      toast('Héberge le fichier (GitHub Pages) ou lance : python -m http.server 8080', true);
+      return;
+    }
+
     const btn = document.getElementById('btnGenTranscript');
     btn.textContent = '⏳ Génération...';
     btn.disabled = true;
 
-    const prompt = `Tu es un expert en cinéma.
-Film : "${s.film}"
-Scène : "${s.title}"
-Personnages : ${s.characters || 'non précisé'}
-Description : ${s.description || 'non précisée'}
-Tags : ${s.tags || 'non précisés'}
-
-Génère la transcription de cette scène en français, avec le format :
-PERSONNAGE — Réplique
-
-Si tu ne connais pas précisément cette scène, génère une transcription vraisemblable basée sur le contexte. Indique à la fin entre crochets si c'est une transcription exacte ou approximative. Ne mets rien d'autre que la transcription.`;
+    const prompt = `Tu es expert en cinéma et traduction. Voici une scène de film :\n\nFilm : "${s.film}"\nScène : "${s.title}"\nPersonnages : ${s.characters || 'non précisé'}\nDescription : ${s.description || 'non précisée'}\nTags : ${s.tags || 'non précisés'}\n\nGénère le document suivant en trois blocs séparés par "---" :\n\nBLOC 1 — TRANSCRIPTION ORIGINALE\nLa transcription dans la langue d'origine, au format scénario :\nPERSONNAGE\nRéplique.\n\nBLOC 2 — TRADUCTION FRANÇAISE\nTraduction fidèle en français, méme format :\nPERSONNAGE\nRéplique en français.\n\nBLOC 3 — NOTES DE JEU\n3 à 5 observations courtes sur le jeu d'acteur, les sous-textes ou la mise en scène.\n\nSi tu ne connais pas précisément la scène, génère une version vraisemblable. Indique [approximatif] à la fin du bloc 1 si c'est le cas. Ne mets rien d'autre que ces trois blocs.`;
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
+          max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }]
         })
       });
@@ -1141,13 +1184,31 @@ Si tu ne connais pas précisément cette scène, génère une transcription vrai
       document.getElementById('btnEditTranscript').style.display = 'none';
       document.getElementById('btnSaveTranscript').style.display = '';
       document.getElementById('btnCancelTranscript').style.display = '';
+      document.getElementById('btnDownloadTranscript').style.display = '';
       toast('Transcription générée — vérifie et enregistre');
     } catch(err) {
-      toast('Erreur Claude : ' + err.message, true);
+      const msg = err.message.includes('Failed to fetch')
+        ? 'CORS bloqué — lance : python -m http.server 8080'
+        : 'Erreur Claude : ' + err.message;
+      toast(msg, true);
     } finally {
       btn.textContent = '✨ Générer via IA';
       btn.disabled = false;
     }
+  }
+
+  function downloadTranscript() {
+    const s = allScenes.find(s => s.id === currentId);
+    const text = document.getElementById('viewTranscript').value;
+    if (!text) return;
+    const filename = (s ? s.film + ' — ' + s.title : 'transcription')
+      .replace(/[^\w\s\-À-ɏ]/g, '').trim() + '.txt';
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   // ══════════════════════════════════════════
@@ -1170,6 +1231,7 @@ Si tu ne connais pas précisément cette scène, génère une transcription vrai
     document.getElementById('btnEditTranscript').style.display   = '';
     document.getElementById('btnSaveTranscript').style.display   = 'none';
     document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnDownloadTranscript').style.display = s.transcript ? '' : 'none';
     document.getElementById('btnEditMeta').style.display         = '';
     document.getElementById('btnSaveMeta').style.display         = 'none';
     document.getElementById('btnCancelMeta').style.display       = 'none';
@@ -1190,6 +1252,7 @@ Si tu ne connais pas précisément cette scène, génère une transcription vrai
     document.getElementById('btnEditTranscript').style.display   = '';
     document.getElementById('btnSaveTranscript').style.display   = 'none';
     document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnDownloadTranscript').style.display = s.transcript ? '' : 'none';
     document.getElementById('btnEditMeta').style.display         = '';
     document.getElementById('btnSaveMeta').style.display         = 'none';
     document.getElementById('btnCancelMeta').style.display       = 'none';
@@ -1197,6 +1260,7 @@ Si tu ne connais pas précisément cette scène, génère une transcription vrai
     ['viewTitle','viewFilm','viewDescription'].forEach(id => {
       document.getElementById(id).setAttribute('contenteditable','false');
     });
+    document.getElementById('btnDownloadTranscript').style.display = val ? '' : 'none';
     toast('Transcription sauvegardée');
   }
 
@@ -1327,6 +1391,50 @@ Si tu ne connais pas précisément cette scène, génère une transcription vrai
   function esc(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ══════════════════════════════════════════
+  // SETTINGS
+  // ══════════════════════════════════════════
+  function openSettings() {
+    const stored = localStorage.getItem('scenebase_api_key') || '';
+    document.getElementById('settingsApiKey').value = stored;
+    updateKeyStatus(stored);
+    document.getElementById('settingsModal').classList.add('open');
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsModal').classList.remove('open');
+  }
+
+  function updateKeyStatus(key) {
+    const el = document.getElementById('settingsKeyStatus');
+    if (key && key.startsWith('sk-')) {
+      el.textContent = '✓ Clé configurée';
+      el.style.color = '#4caf82';
+    } else {
+      el.textContent = 'Non configurée';
+      el.style.color = 'var(--text-faint)';
+    }
+  }
+
+  function saveApiKey() {
+    const key = document.getElementById('settingsApiKey').value.trim();
+    if (key && !key.startsWith('sk-')) { toast('Clé invalide — doit commencer par sk-', true); return; }
+    if (key) localStorage.setItem('scenebase_api_key', key);
+    else localStorage.removeItem('scenebase_api_key');
+    ANTHROPIC_KEY = key;
+    updateKeyStatus(key);
+    closeSettings();
+    toast(key ? 'Clé API enregistrée' : 'Clé effacée');
+  }
+
+  function clearApiKey() {
+    localStorage.removeItem('scenebase_api_key');
+    ANTHROPIC_KEY = '';
+    document.getElementById('settingsApiKey').value = '';
+    updateKeyStatus('');
+    toast('Clé effacée');
   }
 
   function handleOverlayClick(e, modalId) {
