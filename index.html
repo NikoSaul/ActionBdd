@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Joue une scène</title>
+  <title>Joue ta scène</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
   <style>
@@ -675,7 +675,7 @@
 <!-- HEADER -->
 <header>
   <div class="logo">
-    ScèneBase
+    Joue ta scène
     <small>Bibliothèque de scènes</small>
   </div>
   <div class="search-wrap">
@@ -768,11 +768,6 @@
       <div class="section-label">Personnages</div>
       <div class="view-characters" id="viewCharacters"></div>
 
-      <div id="viewHintsWrap" style="display:none;margin-top:0.8rem">
-        <div class="section-label">Repères IA</div>
-        <div id="viewHints" style="font-size:0.78rem;color:var(--text-dim);line-height:1.7;font-family:'DM Mono',monospace"></div>
-      </div>
-
       <hr class="divider">
 
       <div class="section-label">Transcription</div>
@@ -842,12 +837,6 @@
       <div class="field">
         <label>Description / Notes de mise en scène</label>
         <textarea id="fDescription" placeholder="Contexte, enjeux, observations..."></textarea>
-      </div>
-      <div class="field">
-        <label>Aide à la génération IA <span style="color:var(--text-faint);font-size:0.75em;letter-spacing:0">(optionnel)</span></label>
-        <input type="text" id="fHintFirst" placeholder="Première réplique approximative...">
-        <input type="text" id="fHintLast" placeholder="Dernière réplique approximative..." style="margin-top:6px">
-        <div class="field-hint">Donne des repères à Claude pour une transcription plus précise.</div>
       </div>
       <div class="field">
         <label>Transcription</label>
@@ -1109,12 +1098,6 @@ VINCENT — Un Royale avec fromage."></textarea>
     document.getElementById('viewDescription').textContent = s.description || '';
     const nbLabel = s.nb_characters ? ` (${s.nb_characters} personnage${s.nb_characters > 1 ? 's' : ''})` : '';
     document.getElementById('viewCharacters').textContent = (s.characters || 'Non renseigné') + nbLabel;
-    if (s.hints) {
-      document.getElementById('viewHints').textContent = s.hints;
-      document.getElementById('viewHintsWrap').style.display = 'block';
-    } else {
-      document.getElementById('viewHintsWrap').style.display = 'none';
-    }
 
     const tags = parseTags(s.tags);
     document.getElementById('viewTags').innerHTML = tags.map(t => `<span class="chip">${t}</span>`).join('');
@@ -1189,7 +1172,7 @@ VINCENT — Un Royale avec fromage."></textarea>
     btn.textContent = '⏳ Génération...';
     btn.disabled = true;
 
-    const prompt = `Tu es expert en cinéma et traduction. Voici une scène de film :\n\nFilm : "${s.film}"\nScène : "${s.title}"\nPersonnages : ${s.characters || 'non précisé'}\nDescription : ${s.description || 'non précisée'}\nTags : ${s.tags || 'non précisés'}${s.hints ? '\nRepères (première/dernière réplique approx.) : ' + s.hints : ''}\n\nGénère le document suivant en trois blocs séparés par "---" :\n\nBLOC 1 — TRANSCRIPTION ORIGINALE\nLa transcription dans la langue d'origine, au format scénario :\nPERSONNAGE\nRéplique.\n\nBLOC 2 — TRADUCTION FRANÇAISE\nTraduction fidèle en français, méme format :\nPERSONNAGE\nRéplique en français.\n\nBLOC 3 — NOTES DE JEU\n3 à 5 observations courtes sur le jeu d'acteur, les sous-textes ou la mise en scène.\n\nSi tu ne connais pas précisément la scène, génère une version vraisemblable. Indique [approximatif] à la fin du bloc 1 si c'est le cas. Ne mets rien d'autre que ces trois blocs.`;
+    const prompt = `Tu es expert en cinéma et traduction. Voici une scène de film :\n\nFilm : "${s.film}"\nScène : "${s.title}"\nPersonnages : ${s.characters || 'non précisé'}\nDescription : ${s.description || 'non précisée'}\nTags : ${s.tags || 'non précisés'}\n\nGénère le document suivant en trois blocs séparés par "---" :\n\nBLOC 1 — TRANSCRIPTION ORIGINALE\nLa transcription dans la langue d'origine, au format scénario :\nPERSONNAGE\nRéplique.\n\nBLOC 2 — TRADUCTION FRANÇAISE\nTraduction fidèle en français, méme format :\nPERSONNAGE\nRéplique en français.\n\nBLOC 3 — NOTES DE JEU\n3 à 5 observations courtes sur le jeu d'acteur, les sous-textes ou la mise en scène.\n\nSi tu ne connais pas précisément la scène, génère une version vraisemblable. Indique [approximatif] à la fin du bloc 1 si c'est le cas. Ne mets rien d'autre que ces trois blocs.`;
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1423,7 +1406,7 @@ VINCENT — Un Royale avec fromage."></textarea>
   // ADD MODAL
   // ══════════════════════════════════════════
   function openAddModal() {
-    ['fTitle','fFilm','fYoutube','fCharacters','fNbCharacters','fDescription','fHintFirst','fHintLast','fTranscript']
+    ['fTitle','fFilm','fYoutube','fCharacters','fNbCharacters','fDescription','fTranscript']
       .forEach(id => { document.getElementById(id).value = ''; });
     resetTagCheckboxes();
     document.getElementById('addModal').classList.add('open');
@@ -1432,16 +1415,6 @@ VINCENT — Un Royale avec fromage."></textarea>
 
   function closeAddModal() {
     document.getElementById('addModal').classList.remove('open');
-  }
-
-  function buildHints() {
-    const first = document.getElementById('fHintFirst').value.trim();
-    const last  = document.getElementById('fHintLast').value.trim();
-    if (!first && !last) return null;
-    const parts = [];
-    if (first) parts.push('Première réplique : ' + first);
-    if (last)  parts.push('Dernière réplique : ' + last);
-    return parts.join(' | ');
   }
 
   async function submitScene() {
@@ -1454,7 +1427,6 @@ VINCENT — Un Royale avec fromage."></textarea>
       film,
       youtube_url : document.getElementById('fYoutube').value.trim() || null,
       tags          : getSelectedTags() || null,
-      hints         : buildHints(),
       nb_characters : parseInt(document.getElementById('fNbCharacters').value) || null,
       characters  : document.getElementById('fCharacters').value.trim() || null,
       description : document.getElementById('fDescription').value.trim() || null,
