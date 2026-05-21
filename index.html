@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Liste de film</title>
+  <title>Joue une scène</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
   <style>
@@ -675,7 +675,7 @@
 <!-- HEADER -->
 <header>
   <div class="logo">
-    Trouve ton scène
+    ScèneBase
     <small>Bibliothèque de scènes</small>
   </div>
   <div class="search-wrap">
@@ -768,6 +768,11 @@
       <div class="section-label">Personnages</div>
       <div class="view-characters" id="viewCharacters"></div>
 
+      <div id="viewHintsWrap" style="display:none;margin-top:0.8rem">
+        <div class="section-label">Repères IA</div>
+        <div id="viewHints" style="font-size:0.78rem;color:var(--text-dim);line-height:1.7;font-family:'DM Mono',monospace"></div>
+      </div>
+
       <hr class="divider">
 
       <div class="section-label">Transcription</div>
@@ -776,7 +781,8 @@
         <button class="btn" id="btnEditTranscript" onclick="startEditTranscript()">Modifier</button>
         <button class="btn primary" id="btnSaveTranscript" onclick="saveTranscript()" style="display:none">Enregistrer</button>
         <button class="btn" id="btnCancelTranscript" onclick="cancelEditTranscript()" style="display:none">Annuler</button>
-        <button class="btn" id="btnGenTranscript" onclick="generateTranscript()" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#10024; Générer via IA</button>
+        <button class="btn" id="btnWhisper" onclick="whisperTranscribe()" style="background:rgba(80,160,220,0.08);border-color:rgba(80,160,220,0.3);color:#5ea8dc">&#127908; Transcrire YouTube</button>
+        <button class="btn" id="btnGenTranscript" onclick="generateTranscript()" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#10024; Formater + Traduire</button>
         <button class="btn" id="btnDownloadTranscript" onclick="downloadTranscript()" style="display:none;background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#8595; Télécharger</button>
         <button class="btn danger btn-spacer" onclick="deleteScene()">Supprimer</button>
       </div>
@@ -838,6 +844,12 @@
         <textarea id="fDescription" placeholder="Contexte, enjeux, observations..."></textarea>
       </div>
       <div class="field">
+        <label>Aide à la génération IA <span style="color:var(--text-faint);font-size:0.75em;letter-spacing:0">(optionnel)</span></label>
+        <input type="text" id="fHintFirst" placeholder="Première réplique approximative...">
+        <input type="text" id="fHintLast" placeholder="Dernière réplique approximative..." style="margin-top:6px">
+        <div class="field-hint">Donne des repères à Claude pour une transcription plus précise.</div>
+      </div>
+      <div class="field">
         <label>Transcription</label>
         <textarea id="fTranscript" style="min-height:110px"
           placeholder="VINCENT — Tu sais ce qu'ils appellent un quart de livre de fromage en France ?
@@ -873,6 +885,12 @@ VINCENT — Un Royale avec fromage."></textarea>
         <div id="settingsKeyStatus" style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint)">Non configurée</div>
       </div>
 
+      <div class="field" style="margin-top:0.5rem">
+        <label>URL serveur VPS (Whisper)</label>
+        <input type="text" id="settingsVpsUrl" placeholder="https://monserveur.com:5055">
+        <div class="field-hint">Ton serveur Python pour la transcription YouTube exacte.</div>
+      </div>
+
     </div>
     <div class="form-footer" style="justify-content:space-between">
       <button class="btn danger" onclick="clearApiKey()">Effacer la clé</button>
@@ -898,6 +916,8 @@ VINCENT — Un Royale avec fromage."></textarea>
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzdHR3d3VpbWhtdXR6c2d3cGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNDAyNDMsImV4cCI6MjA5NDkxNjI0M30.nPJYvq92xfENhsf5uaBQX6PPD9cUtErD-oLHCjcJIGE';
 
   let ANTHROPIC_KEY = localStorage.getItem('scenebase_api_key') || '';
+  // URL de ton serveur VPS — change après déploiement
+  const VPS_TRANSCRIBE_URL = localStorage.getItem('scenebase_vps_url') || '';
 
   // ══════════════════════════════════════════
   // PREDEFINED TAGS
@@ -1089,6 +1109,12 @@ VINCENT — Un Royale avec fromage."></textarea>
     document.getElementById('viewDescription').textContent = s.description || '';
     const nbLabel = s.nb_characters ? ` (${s.nb_characters} personnage${s.nb_characters > 1 ? 's' : ''})` : '';
     document.getElementById('viewCharacters').textContent = (s.characters || 'Non renseigné') + nbLabel;
+    if (s.hints) {
+      document.getElementById('viewHints').textContent = s.hints;
+      document.getElementById('viewHintsWrap').style.display = 'block';
+    } else {
+      document.getElementById('viewHintsWrap').style.display = 'none';
+    }
 
     const tags = parseTags(s.tags);
     document.getElementById('viewTags').innerHTML = tags.map(t => `<span class="chip">${t}</span>`).join('');
@@ -1163,7 +1189,7 @@ VINCENT — Un Royale avec fromage."></textarea>
     btn.textContent = '⏳ Génération...';
     btn.disabled = true;
 
-    const prompt = `Tu es expert en cinéma et traduction. Voici une scène de film :\n\nFilm : "${s.film}"\nScène : "${s.title}"\nPersonnages : ${s.characters || 'non précisé'}\nDescription : ${s.description || 'non précisée'}\nTags : ${s.tags || 'non précisés'}\n\nGénère le document suivant en trois blocs séparés par "---" :\n\nBLOC 1 — TRANSCRIPTION ORIGINALE\nLa transcription dans la langue d'origine, au format scénario :\nPERSONNAGE\nRéplique.\n\nBLOC 2 — TRADUCTION FRANÇAISE\nTraduction fidèle en français, méme format :\nPERSONNAGE\nRéplique en français.\n\nBLOC 3 — NOTES DE JEU\n3 à 5 observations courtes sur le jeu d'acteur, les sous-textes ou la mise en scène.\n\nSi tu ne connais pas précisément la scène, génère une version vraisemblable. Indique [approximatif] à la fin du bloc 1 si c'est le cas. Ne mets rien d'autre que ces trois blocs.`;
+    const prompt = `Tu es expert en cinéma et traduction. Voici une scène de film :\n\nFilm : "${s.film}"\nScène : "${s.title}"\nPersonnages : ${s.characters || 'non précisé'}\nDescription : ${s.description || 'non précisée'}\nTags : ${s.tags || 'non précisés'}${s.hints ? '\nRepères (première/dernière réplique approx.) : ' + s.hints : ''}\n\nGénère le document suivant en trois blocs séparés par "---" :\n\nBLOC 1 — TRANSCRIPTION ORIGINALE\nLa transcription dans la langue d'origine, au format scénario :\nPERSONNAGE\nRéplique.\n\nBLOC 2 — TRADUCTION FRANÇAISE\nTraduction fidèle en français, méme format :\nPERSONNAGE\nRéplique en français.\n\nBLOC 3 — NOTES DE JEU\n3 à 5 observations courtes sur le jeu d'acteur, les sous-textes ou la mise en scène.\n\nSi tu ne connais pas précisément la scène, génère une version vraisemblable. Indique [approximatif] à la fin du bloc 1 si c'est le cas. Ne mets rien d'autre que ces trois blocs.`;
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1199,6 +1225,53 @@ VINCENT — Un Royale avec fromage."></textarea>
       toast(msg, true);
     } finally {
       btn.textContent = '✨ Générer via IA';
+      btn.disabled = false;
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // WHISPER — TRANSCRIBE FROM YOUTUBE
+  // ══════════════════════════════════════════
+  async function whisperTranscribe() {
+    const s = allScenes.find(s => s.id === currentId);
+    if (!s) return;
+
+    const vpsUrl = localStorage.getItem('scenebase_vps_url') || '';
+    if (!vpsUrl) {
+      toast('Configure l\'URL du serveur VPS dans ⚙ Paramètres', true);
+      return;
+    }
+    if (!s.youtube_url) {
+      toast('Cette scène n\'a pas de lien YouTube', true);
+      return;
+    }
+
+    const btn = document.getElementById('btnWhisper');
+    btn.textContent = '⏳ Transcription...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(vpsUrl + '/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: s.youtube_url })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+      const ta = document.getElementById('viewTranscript');
+      ta.value = data.transcript;
+      ta.readOnly = false;
+      document.getElementById('btnEditTranscript').style.display   = 'none';
+      document.getElementById('btnSaveTranscript').style.display   = '';
+      document.getElementById('btnCancelTranscript').style.display = '';
+      document.getElementById('btnDownloadTranscript').style.display = '';
+      toast('Transcription Whisper prête — vérifie et enregistre');
+    } catch(err) {
+      toast('Erreur Whisper : ' + err.message, true);
+    } finally {
+      btn.textContent = '\uD83C\uDF08 Transcrire YouTube';
+      btn.textContent = '🎤 Transcrire YouTube';
       btn.disabled = false;
     }
   }
@@ -1350,7 +1423,7 @@ VINCENT — Un Royale avec fromage."></textarea>
   // ADD MODAL
   // ══════════════════════════════════════════
   function openAddModal() {
-    ['fTitle','fFilm','fYoutube','fCharacters','fNbCharacters','fDescription','fTranscript']
+    ['fTitle','fFilm','fYoutube','fCharacters','fNbCharacters','fDescription','fHintFirst','fHintLast','fTranscript']
       .forEach(id => { document.getElementById(id).value = ''; });
     resetTagCheckboxes();
     document.getElementById('addModal').classList.add('open');
@@ -1359,6 +1432,16 @@ VINCENT — Un Royale avec fromage."></textarea>
 
   function closeAddModal() {
     document.getElementById('addModal').classList.remove('open');
+  }
+
+  function buildHints() {
+    const first = document.getElementById('fHintFirst').value.trim();
+    const last  = document.getElementById('fHintLast').value.trim();
+    if (!first && !last) return null;
+    const parts = [];
+    if (first) parts.push('Première réplique : ' + first);
+    if (last)  parts.push('Dernière réplique : ' + last);
+    return parts.join(' | ');
   }
 
   async function submitScene() {
@@ -1371,6 +1454,7 @@ VINCENT — Un Royale avec fromage."></textarea>
       film,
       youtube_url : document.getElementById('fYoutube').value.trim() || null,
       tags          : getSelectedTags() || null,
+      hints         : buildHints(),
       nb_characters : parseInt(document.getElementById('fNbCharacters').value) || null,
       characters  : document.getElementById('fCharacters').value.trim() || null,
       description : document.getElementById('fDescription').value.trim() || null,
@@ -1405,6 +1489,7 @@ VINCENT — Un Royale avec fromage."></textarea>
   function openSettings() {
     const stored = localStorage.getItem('scenebase_api_key') || '';
     document.getElementById('settingsApiKey').value = stored;
+    document.getElementById('settingsVpsUrl').value = localStorage.getItem('scenebase_vps_url') || '';
     updateKeyStatus(stored);
     document.getElementById('settingsModal').classList.add('open');
   }
@@ -1425,14 +1510,17 @@ VINCENT — Un Royale avec fromage."></textarea>
   }
 
   function saveApiKey() {
-    const key = document.getElementById('settingsApiKey').value.trim();
+    const key    = document.getElementById('settingsApiKey').value.trim();
+    const vpsUrl = document.getElementById('settingsVpsUrl').value.trim().replace(/\/$/, '');
     if (key && !key.startsWith('sk-')) { toast('Clé invalide — doit commencer par sk-', true); return; }
     if (key) localStorage.setItem('scenebase_api_key', key);
     else localStorage.removeItem('scenebase_api_key');
+    if (vpsUrl) localStorage.setItem('scenebase_vps_url', vpsUrl);
+    else localStorage.removeItem('scenebase_vps_url');
     ANTHROPIC_KEY = key;
     updateKeyStatus(key);
     closeSettings();
-    toast(key ? 'Clé API enregistrée' : 'Clé effacée');
+    toast('Paramètres enregistrés');
   }
 
   function clearApiKey() {
