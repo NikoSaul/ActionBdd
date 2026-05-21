@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScèneBase</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --surface2: #1e1e1e;
+      --border: #2a2a2a;
+      --gold: #c9a227;
+      --gold-dim: rgba(201,162,39,0.12);
+      --text: #e8e8e0;
+      --text-dim: #888;
+      --text-faint: #3e3e3e;
+      --red: #c0392b;
+      --radius: 3px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,13,13,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .logo small {
+      display: block;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-weight: 300;
+      margin-top: 2px;
+    }
+
+    .search-wrap { flex: 1; max-width: 380px; }
+
+    .search-wrap input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-wrap input:focus { border-color: var(--gold); }
+    .search-wrap input::placeholder { color: var(--text-faint); }
+
+    .btn-add {
+      margin-left: auto;
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: 7px 20px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-add:hover { opacity: 0.8; }
+
+    /* ── TAGS BAR ── */
+    .tags-bar {
+      padding: 0.75rem 2rem;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tags-bar-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-faint);
+      margin-right: 4px;
+    }
+
+    .tag-pill {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .tag-pill:hover { border-color: var(--gold); color: var(--gold); }
+    .tag-pill.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+
+    /* ── GRID ── */
+    .grid-header {
+      padding: 1.2rem 2rem 0.6rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .grid-count {
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--border);
+      margin: 0 2rem 2rem;
+      border: 1px solid var(--border);
+    }
+
+    /* ── CARD ── */
+    .card {
+      display: flex;
+      cursor: pointer;
+      background: var(--surface);
+      min-height: 120px;
+      transition: background 0.2s;
+    }
+
+    .card:hover { background: #1c1c1c; }
+
+    .card-thumb-wrap {
+      position: relative;
+      width: 200px;
+      min-width: 200px;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .card-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease, filter 0.3s;
+      filter: brightness(0.75) saturate(0.8);
+      display: block;
+    }
+
+    .card:hover .card-thumb {
+      transform: scale(1.05);
+      filter: brightness(0.6) saturate(0.8);
+    }
+
+    .card-no-thumb {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: var(--text-faint);
+    }
+
+    .card-info {
+      flex: 1;
+      padding: 0.9rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+      border-left: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      line-height: 1.1;
+    }
+
+    .card-film {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 2px;
+    }
+
+    .card-desc {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      flex: 1;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+    .chip {
+      background: rgba(201,162,39,0.18);
+      color: var(--gold);
+      border: 1px solid rgba(201,162,39,0.25);
+      padding: 1px 7px;
+      border-radius: 2px;
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .card-meta {
+      font-size: 0.62rem;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+    }
+
+    /* ── STATES ── */
+    .empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 5rem 2rem;
+      background: var(--bg);
+      color: var(--text-faint);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .loading-state {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    /* ── CONFIG BANNER ── */
+    .config-banner {
+      background: rgba(192,57,43,0.08);
+      border: 1px solid rgba(192,57,43,0.25);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.5rem;
+      margin: 1.5rem 2rem;
+      font-size: 0.8rem;
+      color: #d07070;
+      line-height: 1.7;
+    }
+
+    .config-banner code {
+      background: rgba(255,255,255,0.06);
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    .config-banner strong { color: #e08080; }
+
+    /* ── MODAL OVERLAY ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 0.8rem; right: 1rem;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.6rem;
+      cursor: pointer;
+      z-index: 10;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    /* ── VIEW MODAL ── */
+    #viewModal .modal { max-width: 860px; }
+
+    .view-video {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    .view-video iframe {
+      width: 100%; height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .view-body { padding: 1.5rem; }
+
+    .view-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.7rem;
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .view-film {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin-top: 5px;
+      margin-bottom: 0.9rem;
+    }
+
+    .view-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+
+    .view-description {
+      font-size: 0.83rem;
+      color: var(--text-dim);
+      line-height: 1.75;
+      margin-bottom: 1.3rem;
+    }
+
+    .section-label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-faint);
+      margin-bottom: 6px;
+    }
+
+    .view-characters {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 1.3rem;
+      line-height: 1.6;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.2rem 0;
+    }
+
+    .transcript-text {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      line-height: 1.9;
+      white-space: pre-wrap;
+      width: 100%;
+      resize: vertical;
+      min-height: 90px;
+      outline: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .transcript-text:focus { border-color: var(--gold); color: var(--text); }
+
+    .transcript-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      align-items: center;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: 0.03em;
+    }
+
+    .btn:hover { border-color: var(--gold); color: var(--gold); }
+
+    .btn.primary {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      font-weight: 500;
+    }
+
+    .btn.primary:hover { opacity: 0.82; }
+
+    .btn.danger { border-color: rgba(192,57,43,0.4); color: #c0392b; }
+    .btn.danger:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+    .btn-spacer { margin-left: auto; }
+
+    /* ── ADD/EDIT FORM MODAL ── */
+    #addModal .modal { max-width: 580px; }
+
+    .form-header {
+      padding: 1.3rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 0.1em;
+      color: var(--text);
+    }
+
+    .form-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+
+    .field label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-faint);
+    }
+
+    .field input, .field textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 9px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.83rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      line-height: 1.7;
+    }
+
+    .field input:focus, .field textarea:focus { border-color: var(--gold); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-faint); }
+
+    .field-hint {
+      font-size: 0.68rem;
+      color: var(--text-faint);
+      letter-spacing: 0.03em;
+    }
+
+    .tag-group {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      margin-bottom: 6px;
+    }
+
+    .tag-group-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+
+    .tag-checkboxes { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .tag-check-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .tag-check-label:hover { border-color: var(--gold); color: var(--gold); }
+    .tag-check-label input[type="checkbox"] { display: none; }
+    .tag-check-label.checked { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+
+    .tag-group input[type="text"] {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      color: var(--text);
+      padding: 5px 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    .tag-group input[type="text"]:focus { border-color: var(--gold); }
+    .tag-group input[type="text"]::placeholder { color: var(--text-faint); }
+
+    .form-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 2rem; right: 2rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold);
+      color: var(--text);
+      padding: 9px 16px;
+      font-size: 0.78rem;
+      border-radius: var(--radius);
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.25s;
+      pointer-events: none;
+      letter-spacing: 0.02em;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-left-color: var(--red); }
+
+    .view-header-row {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+
+    [contenteditable="true"] {
+      outline: none;
+      border-bottom: 1px solid var(--gold);
+      padding-bottom: 2px;
+      cursor: text;
+    }
+
+    .view-description[contenteditable="true"] {
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      display: block;
+      min-height: 60px;
+      width: 100%;
+    }
+
+    .nb-filter-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nb-filter-wrap input[type="number"] {
+      width: 56px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 5px 8px;
+      font-size: 0.8rem;
+      outline: none;
+      font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    .nb-filter-wrap input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .nb-filter-wrap input[type="number"]:focus { border-color: var(--gold); }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    @media (max-width: 640px) {
+      header { padding: 0 1rem; gap: 1rem; }
+      .tags-bar, .grid-header { padding: 0.75rem 1rem; }
+      .grid { margin: 0 1rem 2rem; grid-template-columns: 1fr; }
+      .row2 { grid-template-columns: 1fr; }
+      .view-body { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    ScèneBase
+    <small>Bibliothèque de scènes</small>
+  </div>
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Titre, film, tag..." oninput="applyFilters()">
+  </div>
+  <div class="nb-filter-wrap">
+    <span>Perso.</span>
+    <input type="number" id="nbFilter" min="1" max="99" placeholder="n" oninput="applyFilters()" title="Filtrer par nombre de personnages">
+  </div>
+  <button class="btn-add" onclick="openAddModal()">+ Ajouter</button>
+</header>
+
+<!-- TAGS BAR -->
+<div class="tags-bar" id="tagsBar">
+  <span class="tags-bar-label">Tags</span>
+</div>
+
+<!-- GRID HEADER -->
+<div class="grid-header">
+  <div class="grid-count" id="gridCount"></div>
+</div>
+
+<!-- CONFIG BANNER (hidden if configured) -->
+<div class="config-banner" id="configBanner" style="display:none">
+  <strong>Configuration requise</strong><br>
+  Ouvre ce fichier et remplace <code>SUPABASE_URL_ICI</code> et <code>SUPABASE_ANON_KEY_ICI</code>
+  par tes identifiants Supabase (Project Settings → API).<br><br>
+  Puis exécute ce SQL dans l'éditeur SQL de Supabase :
+  <br><br>
+  <code>
+    create table scenes (<br>
+    &nbsp;&nbsp;id uuid default gen_random_uuid() primary key,<br>
+    &nbsp;&nbsp;title text not null,<br>
+    &nbsp;&nbsp;film text not null,<br>
+    &nbsp;&nbsp;youtube_url text,<br>
+    &nbsp;&nbsp;description text,<br>
+    &nbsp;&nbsp;transcript text,<br>
+    &nbsp;&nbsp;tags text,<br>
+    &nbsp;&nbsp;characters text,<br>
+    &nbsp;&nbsp;created_at timestamptz default now()<br>
+    );<br><br>
+    alter table scenes enable row level security;<br>
+    create policy "read" on scenes for select using (true);<br>
+    create policy "insert" on scenes for insert with check (true);<br>
+    create policy "update" on scenes for update using (true);<br>
+    create policy "delete" on scenes for delete using (true);
+  </code>
+</div>
+
+<!-- GRID -->
+<div class="grid" id="scenesGrid">
+  <div class="loading-state">Chargement...</div>
+</div>
+
+<!-- ─────────────────────────────────────────
+     VIEW MODAL
+───────────────────────────────────────── -->
+<div class="modal-overlay" id="viewModal" onclick="handleOverlayClick(event,'viewModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeViewModal()">×</button>
+
+    <div class="view-video" id="viewVideoWrap" style="position:relative">
+      <iframe id="viewIframe" allowfullscreen onload="checkIframeLoad(this)"></iframe>
+      <div id="ytFallback" style="display:none;position:absolute;inset:0;background:#0a0a0a;flex-direction:column;align-items:center;justify-content:center;gap:1rem;">
+        <div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.15em;">Embedding désactivé par YouTube</div>
+        <a id="ytFallbackLink" href="#" target="_blank" class="btn primary" style="text-decoration:none;font-family:Bebas Neue,sans-serif;font-size:0.9rem;letter-spacing:0.1em;">Voir sur YouTube</a>
+      </div>
+    </div>
+
+    <div class="view-body">
+      <div class="view-header-row">
+        <div style="flex:1;min-width:0">
+          <div class="view-title" id="viewTitle" contenteditable="false" spellcheck="false"></div>
+          <div class="view-film" id="viewFilm" contenteditable="false" spellcheck="false"></div>
+        </div>
+        <button class="btn" id="btnEditMeta" onclick="startEditMeta()" style="align-self:flex-start;margin-left:1rem">Modifier</button>
+        <button class="btn primary" id="btnSaveMeta" onclick="saveMeta()" style="display:none;align-self:flex-start;margin-left:6px">Enregistrer</button>
+        <button class="btn" id="btnCancelMeta" onclick="cancelEditMeta()" style="display:none;align-self:flex-start;margin-left:6px">Annuler</button>
+      </div>
+      <div class="view-tags" id="viewTags"></div>
+      <p class="view-description" id="viewDescription" contenteditable="false" spellcheck="false"></p>
+
+      <div class="section-label">Personnages</div>
+      <div class="view-characters" id="viewCharacters"></div>
+
+      <hr class="divider">
+
+      <div class="section-label">Transcription</div>
+      <textarea class="transcript-text" id="viewTranscript" readonly placeholder="Aucune transcription."></textarea>
+      <div class="transcript-actions">
+        <button class="btn" id="btnEditTranscript" onclick="startEditTranscript()">Modifier</button>
+        <button class="btn primary" id="btnSaveTranscript" onclick="saveTranscript()" style="display:none">Enregistrer</button>
+        <button class="btn" id="btnCancelTranscript" onclick="cancelEditTranscript()" style="display:none">Annuler</button>
+        <button class="btn" id="btnGenTranscript" onclick="generateTranscript()" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.3);color:var(--gold)">&#10024; Générer via IA</button>
+        <button class="btn danger btn-spacer" onclick="deleteScene()">Supprimer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────
+     ADD MODAL
+───────────────────────────────────────── -->
+<div class="modal-overlay" id="addModal" onclick="handleOverlayClick(event,'addModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddModal()">×</button>
+    <div class="form-header">Nouvelle scène</div>
+    <div class="form-body">
+      <div class="row2">
+        <div class="field">
+          <label>Titre *</label>
+          <input type="text" id="fTitle" placeholder="La scène du dîner">
+        </div>
+        <div class="field">
+          <label>Film *</label>
+          <input type="text" id="fFilm" placeholder="Pulp Fiction">
+        </div>
+      </div>
+      <div class="field">
+        <label>Lien YouTube</label>
+        <input type="url" id="fYoutube" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
+      <div class="field">
+        <label>Tags</label>
+        <div class="tag-group">
+          <div class="tag-group-label">Émotions</div>
+          <div class="tag-checkboxes" id="tagsEmotions"></div>
+        </div>
+        <div class="tag-group">
+          <div class="tag-group-label">Registre dramatique</div>
+          <div class="tag-checkboxes" id="tagsRegistre"></div>
+        </div>
+        <div class="tag-group">
+          <div class="tag-group-label">Autre</div>
+          <input type="text" id="fTagsCustom" placeholder="tag personnalisé, ...">
+          <div class="field-hint">Séparés par des virgules</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Personnages</label>
+          <input type="text" id="fCharacters" placeholder="Vincent, Jules">
+          <div class="field-hint">Séparés par des virgules</div>
+        </div>
+        <div class="field">
+          <label>Nombre de personnages</label>
+          <input type="number" id="fNbCharacters" placeholder="2" min="1" max="99">
+        </div>
+      </div>
+      <div class="field">
+        <label>Description / Notes de mise en scène</label>
+        <textarea id="fDescription" placeholder="Contexte, enjeux, observations..."></textarea>
+      </div>
+      <div class="field">
+        <label>Transcription</label>
+        <textarea id="fTranscript" style="min-height:110px"
+          placeholder="VINCENT — Tu sais ce qu'ils appellent un quart de livre de fromage en France ?
+JULES — Non. Qu'est-ce qu'ils appellent ?
+VINCENT — Un Royale avec fromage."></textarea>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="btn" onclick="closeAddModal()">Annuler</button>
+      <button class="btn primary" onclick="submitScene()">Ajouter la scène</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ─────────────────────────────────────────
+     SCRIPT
+───────────────────────────────────────── -->
+<script>
+  // ══════════════════════════════════════════
+  // CONFIG — remplace par tes identifiants
+  // ══════════════════════════════════════════
+  const SUPABASE_URL      = 'https://usttwwuimhmutzsgwpgn.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzdHR3d3VpbWhtdXR6c2d3cGduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNDAyNDMsImV4cCI6MjA5NDkxNjI0M30.nPJYvq92xfENhsf5uaBQX6PPD9cUtErD-oLHCjcJIGE';
+
+  // ══════════════════════════════════════════
+  // PREDEFINED TAGS
+  // ══════════════════════════════════════════
+  const TAGS_EMOTIONS = ['colère','tristesse','joie','peur','honte','culpabilité','désir','jalousie','deuil','solitude'];
+  const TAGS_REGISTRE = ['tension','suspense','comédie','tragédie','ironie','malaise','violence','humiliation'];
+
+  function buildTagCheckboxes() {
+    function renderGroup(containerId, tags) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      tags.forEach(tag => {
+        const label = document.createElement('label');
+        label.className = 'tag-check-label';
+        label.innerHTML = `<input type="checkbox" value="${tag}"> ${tag}`;
+        label.querySelector('input').addEventListener('change', function() {
+          label.classList.toggle('checked', this.checked);
+        });
+        container.appendChild(label);
+      });
+    }
+    renderGroup('tagsEmotions', TAGS_EMOTIONS);
+    renderGroup('tagsRegistre', TAGS_REGISTRE);
+  }
+
+  function getSelectedTags() {
+    const checked = [...document.querySelectorAll('.tag-check-label.checked input')]
+      .map(i => i.value);
+    const custom = document.getElementById('fTagsCustom').value
+      .split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    return [...new Set([...checked, ...custom])].join(', ');
+  }
+
+  function resetTagCheckboxes() {
+    document.querySelectorAll('.tag-check-label').forEach(l => {
+      l.classList.remove('checked');
+      l.querySelector('input').checked = false;
+    });
+    document.getElementById('fTagsCustom').value = '';
+  }
+
+  buildTagCheckboxes();
+  const isConfigured = !SUPABASE_URL.includes('_ICI');
+  let db = null;
+  let allScenes = [];
+  let activeTags = new Set();
+  let currentId = null;
+  let originalTranscript = '';
+
+  if (isConfigured) {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    loadScenes();
+  } else {
+    document.getElementById('configBanner').style.display = 'block';
+    document.getElementById('scenesGrid').innerHTML = '';
+    document.getElementById('gridCount').textContent = '';
+  }
+
+  // ══════════════════════════════════════════
+  // YOUTUBE UTILS
+  // ══════════════════════════════════════════
+  function getYtId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function thumbnail(url) {
+    const id = getYtId(url);
+    return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+  }
+
+  function embedUrl(url) {
+    const id = getYtId(url);
+    return id ? `https://www.youtube.com/embed/${id}?autoplay=1` : '';
+  }
+
+  // ══════════════════════════════════════════
+  // DATA
+  // ══════════════════════════════════════════
+  async function loadScenes() {
+    const { data, error } = await db
+      .from('scenes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) { toast('Erreur : ' + error.message, true); return; }
+    allScenes = data || [];
+    rebuildTags();
+    renderGrid(allScenes);
+  }
+
+  // ══════════════════════════════════════════
+  // TAGS BAR
+  // ══════════════════════════════════════════
+  function rebuildTags() {
+    const tagSet = new Set();
+    allScenes.forEach(s => {
+      if (s.tags) s.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean).forEach(t => tagSet.add(t));
+    });
+
+    const bar = document.getElementById('tagsBar');
+    [...bar.querySelectorAll('.tag-pill')].forEach(el => el.remove());
+
+    [...tagSet].sort().forEach(tag => {
+      const btn = document.createElement('button');
+      btn.className = 'tag-pill' + (activeTags.has(tag) ? ' active' : '');
+      btn.textContent = tag;
+      btn.onclick = () => { toggleTag(tag, btn); };
+      bar.appendChild(btn);
+    });
+  }
+
+  function toggleTag(tag, btn) {
+    activeTags.has(tag) ? activeTags.delete(tag) : activeTags.add(tag);
+    btn.classList.toggle('active');
+    applyFilters();
+  }
+
+  // ══════════════════════════════════════════
+  // FILTER + SEARCH
+  // ══════════════════════════════════════════
+  function applyFilters() {
+    const q  = document.getElementById('searchInput').value.toLowerCase().trim();
+    const nb = parseInt(document.getElementById('nbFilter').value) || null;
+    const results = allScenes.filter(s => {
+      const sceneTags = parseTags(s.tags);
+      const matchSearch = !q
+        || s.title?.toLowerCase().includes(q)
+        || s.film?.toLowerCase().includes(q)
+        || s.description?.toLowerCase().includes(q)
+        || sceneTags.join(' ').includes(q);
+      const matchTags = activeTags.size === 0 || [...activeTags].every(t => sceneTags.includes(t));
+      const matchNb   = !nb || s.nb_characters === nb;
+      return matchSearch && matchTags && matchNb;
+    });
+    renderGrid(results);
+  }
+
+  // ══════════════════════════════════════════
+  // RENDER GRID
+  // ══════════════════════════════════════════
+  function renderGrid(scenes) {
+    const grid = document.getElementById('scenesGrid');
+    const count = document.getElementById('gridCount');
+    const n = scenes.length;
+    count.textContent = `${n} scène${n !== 1 ? 's' : ''}`;
+
+    if (!n) {
+      grid.innerHTML = '<div class="empty-state">Aucune scène</div>';
+      return;
+    }
+
+    grid.innerHTML = scenes.map(s => {
+      const thumb = thumbnail(s.youtube_url);
+      const tags  = parseTags(s.tags);
+      const chips = tags.map(t => `<span class="chip">${t}</span>`).join('');
+
+      const desc = s.description ? s.description.substring(0, 160) + (s.description.length > 160 ? '...' : '') : '';
+      const nbChar = s.nb_characters ? `${s.nb_characters} personnage${s.nb_characters > 1 ? 's' : ''}` : '';
+      return `
+        <div class="card" onclick="openScene('${s.id}')">
+          <div class="card-thumb-wrap">
+            ${thumb
+              ? `<img class="card-thumb" src="${thumb}" alt="${esc(s.title)}" loading="lazy">`
+              : `<div class="card-no-thumb">▶</div>`}
+          </div>
+          <div class="card-info">
+            <div class="card-title">${esc(s.title)}</div>
+            <div class="card-film">${esc(s.film)}${nbChar ? ` · ${nbChar}` : ''}</div>
+            ${desc ? `<div class="card-desc">${esc(desc)}</div>` : ''}
+            <div class="card-tags">${chips}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════
+  // VIEW MODAL
+  // ══════════════════════════════════════════
+  function openScene(id) {
+    const s = allScenes.find(s => s.id === id);
+    if (!s) return;
+    currentId = id;
+
+    document.getElementById('viewTitle').textContent = s.title;
+    document.getElementById('viewFilm').textContent  = s.film;
+    document.getElementById('viewDescription').textContent = s.description || '';
+    const nbLabel = s.nb_characters ? ` (${s.nb_characters} personnage${s.nb_characters > 1 ? 's' : ''})` : '';
+    document.getElementById('viewCharacters').textContent = (s.characters || 'Non renseigné') + nbLabel;
+
+    const tags = parseTags(s.tags);
+    document.getElementById('viewTags').innerHTML = tags.map(t => `<span class="chip">${t}</span>`).join('');
+
+    const ta = document.getElementById('viewTranscript');
+    ta.value = s.transcript || '';
+    ta.readOnly = true;
+
+    document.getElementById('btnEditTranscript').style.display   = '';
+    document.getElementById('btnSaveTranscript').style.display   = 'none';
+    document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnEditMeta').style.display         = '';
+    document.getElementById('btnSaveMeta').style.display         = 'none';
+    document.getElementById('btnCancelMeta').style.display       = 'none';
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','false');
+    });
+
+    document.getElementById('viewIframe').src = embedUrl(s.youtube_url);
+    document.getElementById('ytFallbackLink').href = s.youtube_url || '#';
+    document.getElementById('ytFallback').style.display = 'none';
+    document.getElementById('viewIframe').style.display = '';
+    document.getElementById('viewModal').classList.add('open');
+  }
+
+  function showYtFallback() {
+    document.getElementById('viewIframe').style.display = 'none';
+    const fb = document.getElementById('ytFallback');
+    fb.style.display = 'flex';
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data && e.data.event === 'onError' && (e.data.info === 150 || e.data.info === 153)) {
+      showYtFallback();
+    }
+  });
+
+  function closeViewModal() {
+    document.getElementById('viewModal').classList.remove('open');
+    document.getElementById('viewIframe').src = '';
+    document.getElementById('viewIframe').style.display = '';
+    document.getElementById('ytFallback').style.display = 'none';
+    currentId = null;
+  }
+
+  // ══════════════════════════════════════════
+  // CLAUDE — GENERATE TRANSCRIPT
+  // ══════════════════════════════════════════
+  async function generateTranscript() {
+    const s = allScenes.find(s => s.id === currentId);
+    if (!s) return;
+
+    const btn = document.getElementById('btnGenTranscript');
+    btn.textContent = '⏳ Génération...';
+    btn.disabled = true;
+
+    const prompt = `Tu es un expert en cinéma.
+Film : "${s.film}"
+Scène : "${s.title}"
+Personnages : ${s.characters || 'non précisé'}
+Description : ${s.description || 'non précisée'}
+Tags : ${s.tags || 'non précisés'}
+
+Génère la transcription de cette scène en français, avec le format :
+PERSONNAGE — Réplique
+
+Si tu ne connais pas précisément cette scène, génère une transcription vraisemblable basée sur le contexte. Indique à la fin entre crochets si c'est une transcription exacte ou approximative. Ne mets rien d'autre que la transcription.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      if (!text) throw new Error('Réponse vide');
+
+      const ta = document.getElementById('viewTranscript');
+      ta.value = text;
+      ta.readOnly = false;
+      document.getElementById('btnEditTranscript').style.display = 'none';
+      document.getElementById('btnSaveTranscript').style.display = '';
+      document.getElementById('btnCancelTranscript').style.display = '';
+      toast('Transcription générée — vérifie et enregistre');
+    } catch(err) {
+      toast('Erreur Claude : ' + err.message, true);
+    } finally {
+      btn.textContent = '✨ Générer via IA';
+      btn.disabled = false;
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // TRANSCRIPT EDIT
+  // ══════════════════════════════════════════
+  function startEditTranscript() {
+    const ta = document.getElementById('viewTranscript');
+    originalTranscript = ta.value;
+    ta.readOnly = false;
+    ta.focus();
+    document.getElementById('btnEditTranscript').style.display   = 'none';
+    document.getElementById('btnSaveTranscript').style.display   = '';
+    document.getElementById('btnCancelTranscript').style.display = '';
+  }
+
+  function cancelEditTranscript() {
+    const ta = document.getElementById('viewTranscript');
+    ta.value    = originalTranscript;
+    ta.readOnly = true;
+    document.getElementById('btnEditTranscript').style.display   = '';
+    document.getElementById('btnSaveTranscript').style.display   = 'none';
+    document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnEditMeta').style.display         = '';
+    document.getElementById('btnSaveMeta').style.display         = 'none';
+    document.getElementById('btnCancelMeta').style.display       = 'none';
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','false');
+    });
+  }
+
+  async function saveTranscript() {
+    const ta  = document.getElementById('viewTranscript');
+    const val = ta.value;
+    const { error } = await db.from('scenes').update({ transcript: val }).eq('id', currentId);
+    if (error) { toast('Erreur : ' + error.message, true); return; }
+    const scene = allScenes.find(s => s.id === currentId);
+    if (scene) scene.transcript = val;
+    ta.readOnly = true;
+    document.getElementById('btnEditTranscript').style.display   = '';
+    document.getElementById('btnSaveTranscript').style.display   = 'none';
+    document.getElementById('btnCancelTranscript').style.display = 'none';
+    document.getElementById('btnEditMeta').style.display         = '';
+    document.getElementById('btnSaveMeta').style.display         = 'none';
+    document.getElementById('btnCancelMeta').style.display       = 'none';
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','false');
+    });
+    toast('Transcription sauvegardée');
+  }
+
+  // ══════════════════════════════════════════
+  // EDIT META (title / film / description)
+  // ══════════════════════════════════════════
+  let originalMeta = {};
+
+  function startEditMeta() {
+    originalMeta = {
+      title: document.getElementById('viewTitle').textContent,
+      film:  document.getElementById('viewFilm').textContent,
+      desc:  document.getElementById('viewDescription').textContent,
+    };
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','true');
+    });
+    document.getElementById('btnEditMeta').style.display   = 'none';
+    document.getElementById('btnSaveMeta').style.display   = '';
+    document.getElementById('btnCancelMeta').style.display = '';
+    document.getElementById('viewTitle').focus();
+  }
+
+  function cancelEditMeta() {
+    document.getElementById('viewTitle').textContent       = originalMeta.title;
+    document.getElementById('viewFilm').textContent        = originalMeta.film;
+    document.getElementById('viewDescription').textContent = originalMeta.desc;
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','false');
+    });
+    document.getElementById('btnEditMeta').style.display   = '';
+    document.getElementById('btnSaveMeta').style.display   = 'none';
+    document.getElementById('btnCancelMeta').style.display = 'none';
+  }
+
+  async function saveMeta() {
+    const title = document.getElementById('viewTitle').textContent.trim();
+    const film  = document.getElementById('viewFilm').textContent.trim();
+    const desc  = document.getElementById('viewDescription').textContent.trim();
+    if (!title || !film) { toast('Titre et film requis', true); return; }
+    const { error } = await db.from('scenes').update({ title, film, description: desc }).eq('id', currentId);
+    if (error) { toast('Erreur : ' + error.message, true); return; }
+    const scene = allScenes.find(s => s.id === currentId);
+    if (scene) { scene.title = title; scene.film = film; scene.description = desc; }
+    ['viewTitle','viewFilm','viewDescription'].forEach(id => {
+      document.getElementById(id).setAttribute('contenteditable','false');
+    });
+    document.getElementById('btnEditMeta').style.display   = '';
+    document.getElementById('btnSaveMeta').style.display   = 'none';
+    document.getElementById('btnCancelMeta').style.display = 'none';
+    renderGrid(allScenes);
+    toast('Modifications enregistrées');
+  }
+
+  // ══════════════════════════════════════════
+  // DELETE
+  // ══════════════════════════════════════════
+  async function deleteScene() {
+    if (!confirm('Supprimer cette scène définitivement ?')) return;
+    const { error } = await db.from('scenes').delete().eq('id', currentId);
+    if (error) { toast('Erreur : ' + error.message, true); return; }
+    allScenes = allScenes.filter(s => s.id !== currentId);
+    closeViewModal();
+    rebuildTags();
+    applyFilters();
+    toast('Scène supprimée');
+  }
+
+  // ══════════════════════════════════════════
+  // ADD MODAL
+  // ══════════════════════════════════════════
+  function openAddModal() {
+    ['fTitle','fFilm','fYoutube','fCharacters','fNbCharacters','fDescription','fTranscript']
+      .forEach(id => { document.getElementById(id).value = ''; });
+    resetTagCheckboxes();
+    document.getElementById('addModal').classList.add('open');
+    document.getElementById('fTitle').focus();
+  }
+
+  function closeAddModal() {
+    document.getElementById('addModal').classList.remove('open');
+  }
+
+  async function submitScene() {
+    const title = document.getElementById('fTitle').value.trim();
+    const film  = document.getElementById('fFilm').value.trim();
+    if (!title || !film) { toast('Titre et film requis', true); return; }
+
+    const payload = {
+      title,
+      film,
+      youtube_url : document.getElementById('fYoutube').value.trim() || null,
+      tags          : getSelectedTags() || null,
+      nb_characters : parseInt(document.getElementById('fNbCharacters').value) || null,
+      characters  : document.getElementById('fCharacters').value.trim() || null,
+      description : document.getElementById('fDescription').value.trim() || null,
+      transcript  : document.getElementById('fTranscript').value.trim() || null,
+    };
+
+    const { data, error } = await db.from('scenes').insert([payload]).select();
+    if (error) { toast('Erreur : ' + error.message, true); return; }
+    allScenes.unshift(data[0]);
+    rebuildTags();
+    applyFilters();
+    closeAddModal();
+    toast('Scène ajoutée');
+  }
+
+  // ══════════════════════════════════════════
+  // UTILS
+  // ══════════════════════════════════════════
+  function parseTags(str) {
+    if (!str) return [];
+    return str.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function handleOverlayClick(e, modalId) {
+    if (e.target === document.getElementById(modalId)) {
+      if (modalId === 'viewModal') closeViewModal();
+      else closeAddModal();
+    }
+  }
+
+  let toastTimer;
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = 'toast' + (isError ? ' error' : '');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeViewModal(); closeAddModal(); }
+  });
+</script>
+</body>
+</html>
