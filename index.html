@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReJoue les scènes</title>
+  <title>Liste de film</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
   <style>
@@ -675,7 +675,7 @@
 <!-- HEADER -->
 <header>
   <div class="logo">
-    ScèneBase
+    Trouve ton scène
     <small>Bibliothèque de scènes</small>
   </div>
   <div class="search-wrap">
@@ -1116,6 +1116,12 @@ VINCENT — Un Royale avec fromage."></textarea>
     document.getElementById('viewModal').classList.add('open');
   }
 
+  function checkIframeLoad(iframe) {
+    try {
+      if (iframe.contentDocument && iframe.contentDocument.title === '') showYtFallback();
+    } catch(e) { /* cross-origin, normal */ }
+  }
+
   function showYtFallback() {
     document.getElementById('viewIframe').style.display = 'none';
     const fb = document.getElementById('ytFallback');
@@ -1169,7 +1175,7 @@ VINCENT — Un Royale avec fromage."></textarea>
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }]
         })
